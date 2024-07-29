@@ -1,0 +1,13 @@
+Source: resizefat32
+Section: otherosfs
+Priority: optional
+Maintainer: Garden Linux Builder <contact@gardenlinux.io>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.1
+Rules-Requires-Root: no
+
+Package: resizefat32
+Architecture: any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: resize FAT32 volumes

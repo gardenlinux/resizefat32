@@ -1,0 +1,8 @@
+/resizefat32
+/test.img
+/.vscode
+/debian/*
+!/debian/source
+!/debian/changelog
+!/debian/control
+!/debian/rules

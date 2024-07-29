@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -eufo pipefail
+
+setup_test_img() {
+	truncate -s 0 test.img
+	truncate -s 512M test.img
+	mkfs.vfat -F 32 -s 8 -i c0ffee42 -n TEST test.img
+	echo hello world | mcopy -i test.img - ::/hello
+	head -c 128K /dev/urandom | mcopy -i test.img - ::/random
+	fsck.vfat -n test.img
+}
+
+test_usage() {
+	! ./resizefat32
+}
+
+test_min() {
+	setup_test_img
+	./resizefat32 -s min -t test.img
+	fsck.vfat -n test.img
+	size="$(du -b test.img | cut -f 1)"
+	[ "$size" -lt "$((256 * 1024))" ] && [ "$size" -gt "$((128 * 1024))" ]
+}
+
+test_max() {
+	setup_test_img
+	truncate -s 1G test.img
+	./resizefat32 test.img
+	fsck.vfat -n test.img
+}
+
+test_target() {
+	setup_test_img
+	! ./resizefat32 -s 4G -t test.img
+	fsck.vfat -n test.img
+	size="$(du -b test.img | cut -f 1)"
+	[ "$size" -eq "$((4 * 1024 * 1024 * 1024))" ]
+}
+
+test_target_too_small() {
+	setup_test_img
+	! ./resizefat32 -s 64K -t test.img
+	fsck.vfat -n test.img
+}
+
+test_target_wrong_size_no_truncate() {
+	setup_test_img
+	! ./resizefat32 -s 4G test.img
+	fsck.vfat -n test.img
+}
+
+run_test() (
+	echo "--- start test $1 ---"
+	ret=0
+	test_$1 2>&1 | sed 's/^/  /' || ret=$?
+	if [ "$ret" = 0 ]; then
+		echo -e "\e[0;32mPASSED\e[0m"
+	else
+		echo -e "\e[0;31mFAILED\e[0m"
+	fi
+	echo "--- end test $1 ---"
+	exit "$ret"
+)
+
+readarray -t tests < <(declare -F | cut -d ' ' -f 3 | grep -oP '(?<=^test_).*')
+
+failed=0
+for test in "${tests[@]}"; do
+	ret=0
+	run_test "$test" || ret=1
+	failed="$(( failed + ret ))"
+done
+
+echo "$failed/${#tests[@]} failed"
+exit "$failed"
